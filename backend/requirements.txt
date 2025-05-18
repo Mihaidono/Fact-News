@@ -1,0 +1,11 @@
+requests
+beautifulsoup4
+lxml
+python-dateutil
+google-genai
+python-dotenv
+tortoise-orm
+fastapi
+pydantic
+uvicorn
+asyncpg
