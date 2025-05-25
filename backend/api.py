@@ -1,12 +1,13 @@
+from collections import defaultdict
 from fastapi import FastAPI, HTTPException, Response, status, Query
 from fastapi.middleware.cors import CORSMiddleware
-from models import Source, Article
+from models import Source, Article, Paper
 from pydantic import BaseModel, HttpUrl
 from scraper import NewsScraper
 from smart_processing import ContentAnalyzer
 from tortoise.contrib.fastapi import register_tortoise
 from tortoise.contrib.pydantic import pydantic_model_creator
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from typing import Optional
 from tortoise.expressions import Q
 import uvicorn
@@ -54,6 +55,7 @@ class ArticleIdRequest(BaseModel):
 
 
 Source_Pydantic = pydantic_model_creator(Source)
+Paper_Pydantic = pydantic_model_creator(Paper, name="Paper")
 
 
 @app.post("/add_source/")
@@ -169,18 +171,13 @@ async def get_articles(
             filters &= Q(pub_date__gte=start_dt) & Q(pub_date__lte=end_dt)
         # if 'all', no filter added
 
-    # Filter by source_id if provided
     if source_id:
         filters &= Q(source_id=source_id)
 
-    # Filter by search in title if provided
     if search:
         filters &= Q(title__icontains=search)  # case-insensitive partial match
 
-    # Build query
     articles_query = Article.filter(filters).order_by("-pub_date")
-
-    # Generate response
     Article_Pydantic = pydantic_model_creator(Article, name="Article")
     articles_out = await Article_Pydantic.from_queryset(articles_query)
 
@@ -203,6 +200,91 @@ async def fact_check_article(request: ArticleIdRequest):
         raise HTTPException(status_code=500, detail=f"Fact check failed: {str(e)}")
 
     return {"detail": "Fact checking has been successfully completed"}
+
+
+@app.post("/fact_check_paper")
+async def fact_check_article(request: ArticleIdRequest):
+    paper = await Paper.get_or_none(id=request.id)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    try:
+        fact_checked_text = content_analyzer.fact_check_written_content(paper.content)
+
+        paper.fact_summary = fact_checked_text
+        paper.fact_checked = True
+        await paper.save()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fact check failed: {str(e)}")
+
+    return {"detail": "Fact checking has been successfully completed"}
+
+
+@app.get("/generate_daily_papers")
+async def generate_daily_papers():
+    today = datetime.now().date()
+    start_dt = datetime.combine(today, datetime.min.time())
+    end_dt = datetime.combine(today, datetime.max.time())
+
+    # Query today's articles
+    articles = await Article.filter(pub_date__gte=start_dt, pub_date__lte=end_dt).prefetch_related("source")
+
+    if not articles:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No articles found for today.")
+
+    grouped_articles = defaultdict(list)
+    for article in articles:
+        grouped_articles[article.source.name].append(article.content)
+
+    paper_content = ""
+    for source_name, contents in grouped_articles.items():
+        try:
+            summary = content_analyzer.summarize_content(contents)
+            paper_content += f"{source_name}:\n\n{summary}\n\n"
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to summarize articles from source '{source_name}': {str(e)}",
+            )
+    try:
+        paper = await Paper.create(pub_date=datetime.now(), content=paper_content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to save generated paper: {str(e)}"
+        )
+
+    return {"detail": "Daily paper generated successfully.", "paper_id": paper.id}
+
+
+@app.get("/papers")
+async def get_paper(
+    paper_id: int = Query(None, description="ID of the paper to retrieve"),
+    date: Optional[str] = Query(None, description="Date of the paper in YYYY-MM-DD format"),
+):
+    try:
+        if paper_id is not None:
+            paper = await Paper_Pydantic.from_queryset_single(Paper.get(id=paper_id))
+            return paper
+
+        if date:
+            try:
+                target_date = datetime.strptime(date, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Invalid date format. Use YYYY-MM-DD.")
+
+            start_dt = datetime.combine(target_date, datetime.min.time())
+            end_dt = datetime.combine(target_date, datetime.max.time())
+
+            paper = await Paper_Pydantic.from_queryset_single(Paper.get(pub_date__gte=start_dt, pub_date__lte=end_dt))
+            return paper
+
+        papers = await Paper_Pydantic.from_queryset(Paper.all())
+        return papers
+
+    except Paper.DoesNotExist:
+        raise HTTPException(status_code=404, detail="Paper not found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
 register_tortoise(

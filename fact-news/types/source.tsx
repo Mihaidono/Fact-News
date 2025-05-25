@@ -1,7 +1,7 @@
-export interface Source {
+export type Source = {
   id: number;
   name: string;
   creation_timestamp: string;
   root_url: string;
   scrape_url: string;
-}
+};

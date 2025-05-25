@@ -1,15 +1,29 @@
-"use client"
+"use client";
 
-import { NewspaperIcon, BookOpenIcon, LinkIcon } from "lucide-react"
-import { Sidebar, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { NewspaperIcon, BookOpenIcon, LinkIcon } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AppSidebarProps {
-  activeSection: "feed" | "papers" | "sources"
-  setActiveSection: (section: "feed" | "papers" | "sources") => void
+  activeSection: "feed" | "papers" | "sources";
+  setActiveSection: (section: "feed" | "papers" | "sources") => void;
 }
 
-export function AppSidebar({ activeSection, setActiveSection }: AppSidebarProps) {
+export function AppSidebar({
+  activeSection,
+  setActiveSection,
+}: AppSidebarProps) {
   const menuItems = [
     {
       name: "Feed",
@@ -26,15 +40,14 @@ export function AppSidebar({ activeSection, setActiveSection }: AppSidebarProps)
       icon: LinkIcon,
       value: "sources" as const,
     },
-  ]
+  ];
 
   return (
     <TooltipProvider delayDuration={0}>
       <Sidebar
         collapsible="icon"
         variant="sidebar"
-        style={{ width: "80px" }}
-        className="border-r"
+        className="w-16 md:w-20 border-r"
       >
         <SidebarContent className="pt-10">
           <SidebarMenu className="flex flex-col items-center space-y-10">
@@ -58,7 +71,11 @@ export function AppSidebar({ activeSection, setActiveSection }: AppSidebarProps)
                       <item.icon className="h-5 w-5" />
                     </SidebarMenuButton>
                   </TooltipTrigger>
-                  <TooltipContent side="right" align="center" className="font-medium">
+                  <TooltipContent
+                    side="right"
+                    align="center"
+                    className="font-medium"
+                  >
                     {item.name}
                   </TooltipContent>
                 </Tooltip>
@@ -68,5 +85,5 @@ export function AppSidebar({ activeSection, setActiveSection }: AppSidebarProps)
         </SidebarContent>
       </Sidebar>
     </TooltipProvider>
-  )
+  );
 }

@@ -21,3 +21,10 @@ class Article(Model):
     content = fields.TextField()
     fact_checked = fields.BooleanField(default=False)
     fact_summary = fields.TextField(null=True)
+
+class Paper(Model):
+    id = fields.IntField(pk=True)
+    pub_date = fields.DatetimeField()
+    content = fields.TextField()
+    fact_checked = fields.BooleanField(default=False)
+    fact_summary = fields.TextField(null=True)

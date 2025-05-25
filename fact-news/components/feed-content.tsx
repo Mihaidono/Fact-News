@@ -229,11 +229,17 @@ export function FeedContent() {
     setCurrentPage(1);
   };
 
-  // Get source name by ID
-  const getSourceName = (sourceOrId: number | { id: number; name: string }) => {
+  const getSourceName = (
+    sourceOrId: number | { id: number; name: string } | undefined
+  ) => {
+    if (!sourceOrId) {
+      return "Unknown Source";
+    }
     const sourceId =
       typeof sourceOrId === "number" ? sourceOrId : sourceOrId.id;
+
     const source = sources.find((s) => s.id === sourceId);
+
     return source ? source.name : "Unknown Source";
   };
 
@@ -528,7 +534,7 @@ export function FeedContent() {
               )}
 
               <CardHeader>
-                <CardTitle className="text-center text-xl">
+                <CardTitle className="text-center text-xl mt-4">
                   {article.title}
                 </CardTitle>
                 <div className="flex justify-between text-sm text-muted-foreground mt-2">
